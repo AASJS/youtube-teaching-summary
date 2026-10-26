@@ -1,6 +1,6 @@
 # YouTube 教学视频总结助手（youtube-teaching-summary）
 
-> v1.2.0 ｜ 一个 WorkBuddy / Claude Code 等 Agent 通用的 Skill：**粘贴一个 YouTube / B 站教学/知识类视频链接，自动产出结构化学习笔记**（分章节讲解 + 要点表格 + 核心指令/概念速查表）。
+> v1.3.0 ｜ 一个 WorkBuddy / Claude Code 等 Agent 通用的 Skill：**粘贴一个 YouTube / B 站教学/知识类视频链接，自动产出结构化学习笔记**（分章节讲解 + 要点表格 + 核心指令/概念速查表）。支持 **B 站多 P 合集与播放列表**（逐讲总结 + 学习路径总表），输出格式可选 **默认笔记 / 小红书图文版 / 公众号文章版**。
 
 ## 它解决什么问题
 
@@ -49,13 +49,18 @@ npx skills add AASJS/youtube-teaching-summary -g
 - 「https://www.youtube.com/shorts/xxxx 帮我整理成笔记」
 - 「把这条视频的教学内容总结出来」
 
-支持 YouTube（普通视频 / Shorts）与 **B 站（BV号 / b23.tv 短链）**。若你能提供字幕文件（.srt/.vtt），Skill 会优先按字幕做逐分钟精细拆解（最高保真路径）。
+支持 YouTube（普通视频 / Shorts / 播放列表）与 **B 站（BV号 / b23.tv 短链 / 多 P 合集）**。若你能提供字幕文件（.srt/.vtt），Skill 会优先按字幕做逐分钟精细拆解（最高保真路径）。
 
 ```
 「总结这个视频：https://www.youtube.com/watch?v=xxxx」
 「https://www.youtube.com/shorts/xxxx 帮我整理成笔记」
 「https://www.bilibili.com/video/BVxxxx 这个视频的笔记帮我做好吗」
+「https://www.bilibili.com/video/BVxxxx 这个合集帮我做学习路径总表，先总结前 10 讲」
+「https://www.youtube.com/playlist?list=xxxx 这个播放列表逐集总结」
+「总结这个视频，输出小红书图文版：https://...」
 ```
+
+**系列模式**：B 站多 P 合集会自动识别（官方 API 直接返回全量分 P 目录），产出每讲笔记 + 一份「学习路径总表」；分 P 多于 10 个时先出总表、与你确认范围再逐讲跑。
 
 ## 文件结构
 

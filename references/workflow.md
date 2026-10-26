@@ -6,10 +6,16 @@
 
 ## A. 取元数据（Step 1）
 
+**先规范化 URL（写死的规则，不许跳过）**：
+- `https://www.youtube.com/shorts/<ID>` → `https://www.youtube.com/watch?v=<ID>`（noembed 不识别 shorts 形式，实测失效）
+- 带多余参数的链接（`&list=`、`&t=` 等）先剥掉，只留 `watch?v=<ID>`
+- 拿到 ID 后统一拼成 `https://www.youtube.com/watch?v=<ID>` 再调用下述端点
+
 | 端点 | 命令 | 实测结果 |
 |------|------|---------|
-| noembed | `curl -sS -m 20 "https://noembed.com/embed?url=<URL>"` | ✅ 稳定返回 `{title, author_name, provider, thumbnail_url}` |
+| noembed | `curl -sS -m 20 "https://noembed.com/embed?url=<URL>"` | ✅ 稳定返回 `{title, author_name, provider, thumbnail_url}`（watch 形式） |
 | YouTube oembed | `curl -sS -m 20 "https://www.youtube.com/oembed?url=<URL>&format=json"` | ⚠️ 本环境常返回 401，作备选 |
+| **兜底：WebSearch 搜视频 ID** | WebSearch `"视频ID"` 或完整 URL | ✅ 从搜索结果标题/摘要拿标题与频道（noembed/oembed 双失败时用，实测有效） |
 
 拿到 `title` 后，它就是后续搜索的主关键词。
 
@@ -62,9 +68,17 @@
 
 ```
 拿到 URL
-  └─ noembed 取 title/author  ──失败? 用 WebSearch 直接搜 URL 拿标题
-        └─ WebSearch 搜标题找章节+笔记
-              ├─ 找到 ≥2 篇引用源 → WebFetch 抓取 → 交叉核对 → 输出
-              └─ 找不到细节 → (best-effort) 试字幕站 20s → 仍无 → 用通用框架补全并标注限制
+  └─ 规范化：shorts/<ID> 与带参数链接 → watch?v=<ID>（写死，必做）
+        └─ noembed 取 title/author
+              ├─ 失败? 试 oembed
+              │     └─ 仍失败? WebSearch 直接搜视频 ID/URL 拿标题（兜底，写死）
+              └─ WebSearch 搜标题找章节+笔记
+                    ├─ 找到 ≥2 篇引用源 → WebFetch 抓取 → 交叉核对 → 输出
+                    └─ 找不到细节 → (best-effort) 试字幕站 20s → 仍无 → 用通用框架补全并标注限制
         └─ 用户给了 .srt/.vtt → 直接按字幕逐分钟拆解（最高保真）
 ```
+
+## F. 运行日志（每次运行前后）
+
+- **运行前**：读 `references/runlog.md` 的「已知经验」，规避已踩坑。
+- **运行后**：向其日志表追加一行（格式见该文件）。连续同类问题 2–3 次 → 触发升版修复。

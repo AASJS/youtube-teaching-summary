@@ -25,6 +25,10 @@
 - **同名多版本甄别**：Traversy《React JS Crash Course》有 2021(w7ejDZ8SWv8) 与 2024(3h5m新版) 两个版本，章节表完全不同 → 优先用「按视频 ID 建页」的来源（如 `glasp.co/youtube/<ID>`），并用视频时长/发布年份交叉核对章节表归属。
 - **重大发现：自动字幕站是字幕直连的替代品**：rosetta.to / recapio.com / glasp.co / sozai.app 这类站会自动从 captions 生成「章节 + 时间戳 + 摘要」页面（如 rosetta.to/u/fireship/<slug>、glasp.co/youtube/<ID>、sozai.app/transcript/<slug>）。热门英文视频在这类站命中率极高，等于**绕过了字幕直连被墙的问题** → 搜索时优先加上 `site:rosetta.to / site:glasp.co / site:recapio.com / site:sozai.app` 组合。
 - **B 站元数据路径已验证（v1.2.0 素材）**：noembed 不支持 B 站，但官方 API `https://api.bilibili.com/x/web-interface/view?bvid=<BV号>` 免鉴权可达，返回 title/owner 完整 → v1.2.0 的 B 站支持直接用此 API 替代 noembed。
+- **自动字幕站不可 curl 直连（v1.2.0 实测补充）**：glasp.co SSL 握手被拦、rosetta.to 403（bot 拦截）、recapio.com 200 → v1.2.0 设计正确：**靠 WebSearch 索引命中这些站的内容摘要，不要 curl/WebFetch 直连**。
+- **B 站多 P 合集目录免费拿（v1.3.0 黄金素材）**：view API 的 `data.pages` 数组返回全部分 P（P 号/标题/cid/时长），实测狂神说 Java（BV12J41137hu）返回 80 个分 P 完整目录 → **v1.3.0「系列视频支持」在 B 站侧有现成结构，比 YouTube 播放列表容易**，建议 B 站先做。
+- **YouTube 播放列表 noembed 不支持（v1.3.0 目标场景实证）**：`playlist?list=...` 返回 `no matching providers found` → 播放列表需专门处理路径；单视频 URL 带 `&list=` 参数时按现有规则剥掉即可不受影响。
+- **B 站官方字幕/摘要接口存在（v1.3.0 探索方向）**：BiliTools / Bili Note 两个开源工具实证 B 站有「官方 AI 摘要」与「公开字幕」接口（view API 返回的 aid/cid 是取字幕的钥匙）→ v1.3.0 可探索，若走通，B 站内容路径将升级为「准字幕级」。
 
 ## 日志
 
@@ -38,3 +42,5 @@
 - 2026-10-26 | nykOeWgQcHM | long | ✅ | ✅ | 4 | 同上 | 未反馈 | MIT 6.0001 L1；OCW 官方 PDF 讲义可达 + 两篇 CSDN 中文笔记
 - 2026-10-26 | Ke90Tje7VS0 | long | ⚠️ 首次限流失败，sleep 5s 重试成功 | ⚠️ 首搜凭频道猜错主题，按精确标题重搜后 ✅ | 3 | 同上 | 未反馈 | Mosh React 教程；双教训：限流 + 禁止凭频道猜内容
 - 2026-10-26 | T93SayXhw2w | long | ❌ 403 Forbidden → 兜底 WebSearch ID ✅ | ✅ | 2 | 同上 | 未反馈 | 李永乐黎曼猜想；v1.1.0 兜底路径首次实战验证通过；中文科普类来源以博客+公众号为主
+- 2026-10-26 | BV12J41137hu | long（多P合集） | 官方 API ✅（B站分支首跑） | ✅ | 2+ | （B站分支实测，未出全量总结） | 未反馈 | 狂神说 Java 零基础（17.2h/80 分P）；view API 全字段返回 + pages 目录完整；CSDN 逐节笔记明确按 BV 号命中；v1.2.0 B站分支验证通过
+- 2026-10-26 | PLZHQObOWTQDNU6R1_67000Dx_ZCJB-3pi | playlist | ❌ no matching providers | n/a | 0 | （播放列表探测，未产出） | 未反馈 | YouTube 播放列表 noembed 不支持 → v1.3.0 需专门路径；watch+list 单视频场景不受影响（list 参数剥离规则已覆盖）

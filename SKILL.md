@@ -1,6 +1,6 @@
 ---
 name: youtube-teaching-summary
-version: 1.0.1
+version: 1.1.0
 display_name: YouTube 教学视频总结助手
 display_name_en: YouTube Tutorial Summary Assistant
 description: 输入一个 YouTube 知识/教学/课程类视频链接，自动生成结构化的「学习视频教学内容总结」（分章节讲解 + 核心指令/概念速查表）。当直连 YouTube 或字幕代理受限时，自动改用「网页搜索 + 多源交叉核对」的方式可靠产出。触发词：youtube 总结、视频教学内容总结、教学视频笔记、根据视频生成总结、复制一个 youtube 链接生成总结。
@@ -19,13 +19,18 @@ description_en: Paste a YouTube tutorial/educational video link and auto-generat
 
 ## 核心工作流（按此顺序，别跳步）
 
+### 0. 读运行日志（每次必做）
+打开 `references/runlog.md` 通读「已知经验」与最近几条日志，规避已踩过的坑（如 Shorts 链接需先规范化）。**运行结束后回到第 7 步追加一条日志。**
+
 ### 1. 取元数据（几乎必定成功）
-优先用 noembed（在本环境稳定可达），再尝试官方 oembed：
+**先规范化 URL**：Shorts 链接（`youtube.com/shorts/<ID>`）必须转成 `youtube.com/watch?v=<ID>` 再喂给下面两个端点——noembed 不识别 shorts 形式。
 ```bash
-curl -sS -m 20 "https://noembed.com/embed?url=<视频URL>"        # 返回 title / author_name / provider
-curl -sS -m 20 "https://www.youtube.com/oembed?url=<视频URL>&format=json"  # 备选，可能 401
+curl -sS -m 20 "https://noembed.com/embed?url=<规范化后的视频URL>"        # 返回 title / author_name / provider
+curl -sS -m 20 "https://www.youtube.com/oembed?url=<规范化后的视频URL>&format=json"  # 备选，可能 401
 ```
 拿到标题（title）、频道（author_name）。**标题是后面搜索的关键词**，必须先拿到。
+
+**兜底（noembed 与 oembed 都失败时）**：直接用 WebSearch 搜视频 URL 或视频 ID（如 `"3VD0-qerrOI"` 或完整链接），从搜索结果的标题/摘要里拿视频标题与频道名——实测有效，不要在此卡死。
 
 ### 2. 抓内容（主路径 = 网页搜索，不要死磕直连字幕）
 在受限网络里，直连 YouTube 与多数字幕代理经常失败。最稳的是**用标题去搜现成的章节表与学习笔记**：
@@ -57,6 +62,9 @@ curl -sS -m 20 "https://www.youtube.com/oembed?url=<视频URL>&format=json"  # �
 - 用 present_files 呈现给用户。
 - **必须诚实标注来源与限制**：若未能直取字幕，要写明「基于官方简介 + 多源笔记交叉核对，章节与要点已比对一致，但未逐字抓取字幕」。
 
+### 7. 写运行日志（每次必做，不许省略）
+在 `references/runlog.md` 的日志表末尾追加一行（格式见该文件）：视频ID、类型、noembed 是否命中、主路径是否命中、用了几篇来源、产出文件、用户反馈（未收到就写「未反馈」）、本次遇到的坑。**这些日志是本 skill 唯一的迭代原料。**
+
 ## 可靠性原则
 - **不要因为抓不到字幕就报失败**：网页搜索 + 第三方笔记这条路，对热门教学视频基本够用。
 - **语言跟随视频**：中文教学视频 → 中文总结；英文 → 英文（除非用户要求翻译）。
@@ -69,3 +77,4 @@ curl -sS -m 20 "https://www.youtube.com/oembed?url=<视频URL>&format=json"  # �
 ## 参考文件
 - `references/workflow.md` —— 详细命令、可达/不可达端点清单、降级链
 - `references/summary_template.md` —— 输出 Markdown 模板
+- `references/runlog.md` —— 运行日志：运行前读（规避坑）、运行后写（迭代原料）

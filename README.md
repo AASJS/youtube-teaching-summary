@@ -1,6 +1,6 @@
 # YouTube 教学视频总结助手（youtube-teaching-summary）
 
-> v1.1.0 ｜ 一个 WorkBuddy / Claude Code 等 Agent 通用的 Skill：**粘贴一个 YouTube 教学/知识类视频链接，自动产出结构化学习笔记**（分章节讲解 + 要点表格 + 核心指令/概念速查表）。
+> v1.2.0 ｜ 一个 WorkBuddy / Claude Code 等 Agent 通用的 Skill：**粘贴一个 YouTube / B 站教学/知识类视频链接，自动产出结构化学习笔记**（分章节讲解 + 要点表格 + 核心指令/概念速查表）。
 
 ## 它解决什么问题
 
@@ -49,7 +49,13 @@ npx skills add AASJS/youtube-teaching-summary -g
 - 「https://www.youtube.com/shorts/xxxx 帮我整理成笔记」
 - 「把这条视频的教学内容总结出来」
 
-支持普通视频与 Shorts。若你能提供字幕文件（.srt/.vtt），Skill 会优先按字幕做逐分钟精细拆解（最高保真路径）。
+支持 YouTube（普通视频 / Shorts）与 **B 站（BV号 / b23.tv 短链）**。若你能提供字幕文件（.srt/.vtt），Skill 会优先按字幕做逐分钟精细拆解（最高保真路径）。
+
+```
+「总结这个视频：https://www.youtube.com/watch?v=xxxx」
+「https://www.youtube.com/shorts/xxxx 帮我整理成笔记」
+「https://www.bilibili.com/video/BVxxxx 这个视频的笔记帮我做好吗」
+```
 
 ## 文件结构
 

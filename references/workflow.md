@@ -4,18 +4,29 @@
 
 ---
 
-## A. 取元数据（Step 1）
+## A. 取元数据（Step 1，按平台分支）
 
 **先规范化 URL（写死的规则，不许跳过）**：
 - `https://www.youtube.com/shorts/<ID>` → `https://www.youtube.com/watch?v=<ID>`（noembed 不识别 shorts 形式，实测失效）
-- 带多余参数的链接（`&list=`、`&t=` 等）先剥掉，只留 `watch?v=<ID>`
-- 拿到 ID 后统一拼成 `https://www.youtube.com/watch?v=<ID>` 再调用下述端点
+- YouTube 带多余参数的链接（`&list=`、`&t=` 等）先剥掉，只留 `watch?v=<ID>`
+- B 站：从 `bilibili.com/video/<BV号>` 提取 BV 号；`b23.tv` 短链先跟随跳转拿 BV 号
+- YouTube 拿到 ID 后统一拼成 `https://www.youtube.com/watch?v=<ID>` 再调用下述端点
+
+**YouTube 端点**：
 
 | 端点 | 命令 | 实测结果 |
 |------|------|---------|
-| noembed | `curl -sS -m 20 "https://noembed.com/embed?url=<URL>"` | ✅ 稳定返回 `{title, author_name, provider, thumbnail_url}`（watch 形式） |
+| noembed | `curl -sS -m 20 "https://noembed.com/embed?url=<URL>"` | ✅ 稳定返回 `{title, author_name}`（watch 形式） |
 | YouTube oembed | `curl -sS -m 20 "https://www.youtube.com/oembed?url=<URL>&format=json"` | ⚠️ 本环境常返回 401，作备选 |
-| **兜底：WebSearch 搜视频 ID** | WebSearch `"视频ID"` 或完整 URL | ✅ 从搜索结果标题/摘要拿标题与频道（noembed/oembed 双失败时用，实测有效） |
+| **限流防御** | 批量调用每请求间隔 3–5s；失败先 sleep 5s 重试一次 | ✅ 实测：连发第 6 个请求起超时，重试即恢复 |
+| **兜底：WebSearch 搜视频 ID** | WebSearch `"视频ID"` 或完整 URL | ✅ noembed 403（如 T93SayXhw2w）时有效 |
+
+**B 站端点（v1.2.0 新增）**：
+
+| 端点 | 命令 | 实测结果 |
+|------|------|---------|
+| noembed | 同上格式 | ❌ `no matching providers found`，不支持 B 站 |
+| **B 站官方 API（唯一路径）** | `curl -sS -m 20 "https://api.bilibili.com/x/web-interface/view?bvid=<BV号>" -H "User-Agent: Mozilla/5.0"` | ✅ **免鉴权可达**，返回 `data.title` / `data.owner.name` / `data.duration` |
 
 拿到 `title` 后，它就是后续搜索的主关键词。
 
@@ -23,18 +34,24 @@
 
 ## B. 抓内容主路径（Step 2：WebSearch + WebFetch）
 
-直连字幕在本环境基本不可行，这条是主力：
+直连字幕在本环境基本不可行，这条是主力。
 
-1. **WebSearch 查询组合**（语言跟随视频）：
+**搜索关键词铁律**：必须用**精确标题**（来自 Step 1），严禁凭频道名推断视频主题（实测教训：Mosh 的 React 教程被误当 Python 搜，结果全是频道其他视频的章节表）。
+
+1. **首选查询组合——自动字幕站（准字幕级，v1.2.0 升级为主路径首选）**：
+   - `"<title>" site:rosetta.to`（章节时间戳 + 金句 + Q&A）
+   - `glasp.co/youtube/<视频ID>`（按 ID 建页，可直接拼 URL 试）
+   - `"<title>" site:recapio.com`（带时间戳分段摘要）
+   - `"<title>" site:sozai.app`（全文 transcript + 章节）
+   - 这类站自动从 captions 生成内容，热门英文视频命中率极高，等于绕过字幕直连被墙
+2. **次选查询组合——人写笔记与官方资料**（语言跟随视频）：
    - `"<title>" 章节` / `"<title>" 教學 筆記` / `"<title>" 完整筆記`
    - `"<title>" summary` / `"<title>" notes` / `"<title>" chapters`
    - `"<title>" site:ithelp.ithome.com.tw` / `site:technice.com.tw`
    - 加视频 ID / 频道名一起搜提高命中
-2. **WebFetch** 取 2–3 篇明确引用该视频的来源：
-   - 官方视频简介里的章节表（最权威）
-   - 同一作者配套文章
-   - 第三方学习笔记（如 iT 邦幫忙 Day 系列、technice.com.tw）
-3. 交叉核对章节时间戳、关键概念、命令。
+3. **WebFetch** 取 2–3 篇来源，优先级：**官方简介章节表 > 自动字幕站 > 同作者配套文章 > 第三方笔记**
+4. **同名甄别（写死）**：同一频道常有同名多版本（Traversy《React JS Crash Course》2021/2024 两版章节完全不同）——核对每个来源的**视频 ID、时长、发布年份**，对不上就丢弃
+5. 交叉核对章节时间戳、关键概念、命令。
 
 ---
 
@@ -68,14 +85,18 @@
 
 ```
 拿到 URL
-  └─ 规范化：shorts/<ID> 与带参数链接 → watch?v=<ID>（写死，必做）
-        └─ noembed 取 title/author
-              ├─ 失败? 试 oembed
-              │     └─ 仍失败? WebSearch 直接搜视频 ID/URL 拿标题（兜底，写死）
-              └─ WebSearch 搜标题找章节+笔记
-                    ├─ 找到 ≥2 篇引用源 → WebFetch 抓取 → 交叉核对 → 输出
-                    └─ 找不到细节 → (best-effort) 试字幕站 20s → 仍无 → 用通用框架补全并标注限制
-        └─ 用户给了 .srt/.vtt → 直接按字幕逐分钟拆解（最高保真）
+  └─ 识别平台：YouTube（含 shorts）或 B 站（BV号 / b23.tv）
+        ├─ YouTube ── 规范化 → watch?v=<ID>（写死，必做）
+        │     └─ noembed（批量间隔 3–5s；失败 sleep 5s 重试一次）
+        │           ├─ 失败? 试 oembed
+        │           │     └─ 仍失败? WebSearch 直接搜视频 ID/URL 拿标题（兜底，写死）
+        │           └─ WebSearch：先自动字幕站 → 再人写笔记
+        │                 ├─ 找到 ≥2 篇来源（核对 ID/时长/年份）→ WebFetch → 交叉核对 → 输出
+        │                 └─ 找不到细节 → (best-effort) 试字幕站 20s → 仍无 → 通用框架补全并标注限制
+        └─ B 站 ── 提取 BV号
+              └─ 官方 API 取 title/owner（免鉴权，实测可达）
+                    └─ WebSearch 搜标题找章节+笔记 → 同上交叉核对 → 输出
+  └─ 用户给了 .srt/.vtt → 直接按字幕逐分钟拆解（最高保真）
 ```
 
 ## F. 运行日志（每次运行前后）

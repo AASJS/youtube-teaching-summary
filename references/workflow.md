@@ -27,6 +27,8 @@
 |------|------|---------|
 | noembed | 同上格式 | ❌ `no matching providers found`，不支持 B 站 |
 | **B 站官方 API（唯一路径）** | `curl -sS -m 20 "https://api.bilibili.com/x/web-interface/view?bvid=<BV号>" -H "User-Agent: Mozilla/5.0"` | ✅ **免鉴权可达**，返回 `data.title` / `data.owner.name` / `data.duration` |
+| **多 P 目录（v1.3.0）** | 同上 view API 的 `data.pages` 数组 | ✅ 实测 BV12J41137hu 返回 **80 个分 P**，每项含 `page`/`part`（标题）/`cid`/`duration`——系列总结的现成目录 |
+| **字幕级探测（v1.3.0，best-effort）** | `curl -sS -m 20 "https://api.bilibili.com/x/player/wbi/v2?bvid=<BV号>&cid=<cid>" -H "User-Agent: Mozilla/5.0" -H "Referer: https://www.bilibili.com"` | 🔍 有线索待验证（BiliTools/Bili Note 开源工具实证 B 站有公开字幕与 AI 摘要接口）；`data.subtitle.subtitles` 非空则取 `subtitle_url` 下载 JSON 字幕，空即跳过 |
 
 拿到 `title` 后，它就是后续搜索的主关键词。
 
@@ -93,9 +95,15 @@
         │           └─ WebSearch：先自动字幕站 → 再人写笔记
         │                 ├─ 找到 ≥2 篇来源（核对 ID/时长/年份）→ WebFetch → 交叉核对 → 输出
         │                 └─ 找不到细节 → (best-effort) 试字幕站 20s → 仍无 → 通用框架补全并标注限制
-        └─ B 站 ── 提取 BV号
-              └─ 官方 API 取 title/owner（免鉴权，实测可达）
-                    └─ WebSearch 搜标题找章节+笔记 → 同上交叉核对 → 输出
+        ├─ B 站 ── 提取 BV号
+        │     └─ 官方 API 取 title/owner/pages（免鉴权，实测可达）
+        │           ├─ pages >1? → 系列视频模式（见 G 节）：总表 + 与用户对齐范围 + 逐讲
+        │           ├─ (best-effort) player/wbi/v2 字幕探测 → 有字幕则字幕级输出
+        │           └─ WebSearch 搜标题找章节+笔记 → 同上交叉核对 → 输出
+        └─ YouTube 播放列表（playlist?list=...）
+              └─ noembed 实证不支持 → WebSearch 找第三方整理的列表
+                    ├─ 找到 → 按列表逐集走单视频流程
+                    └─ 找不到 → 说明限制 + 列出已知前几集 + 问用户
   └─ 用户给了 .srt/.vtt → 直接按字幕逐分钟拆解（最高保真）
 ```
 
@@ -103,3 +111,19 @@
 
 - **运行前**：读 `references/runlog.md` 的「已知经验」，规避已踩坑。
 - **运行后**：向其日志表追加一行（格式见该文件）。连续同类问题 2–3 次 → 触发升版修复。
+
+---
+
+## G. 系列视频模式（v1.3.0）
+
+**B 站多 P（首选路径，数据现成）**：
+1. view API 的 `pages` 数组即全量目录：`page`（P号）/`part`（标题）/`cid`/`duration`（实测 80 P 全返回）。
+2. 分 P 多于 10 个 → 先产出「学习路径总表」再与用户对齐范围，勿擅自全量跑。
+3. 逐讲搜索词：`"<合集标题> P<n> <分P标题>"`（B 站教学合集在 CSDN/博客园常有逐讲笔记）。
+4. 产出：每讲一份 `<合集名>_P<n>_<分P标题>.md` + 一份总表 `<合集名>_学习路径总表.md`（P号｜标题｜时长｜核心主题｜依赖前置｜一句话收获 + 建议学习顺序短评）。
+
+**YouTube 播放列表（实证受限）**：
+- noembed 对 `playlist?list=<PLID>` 返回 `no matching providers`——无直接列表来源。
+- 策略：WebSearch 搜播放列表标题/ID + `playlist 章节 OR 所有视频` 找第三方整理；带 `&list=` 参数的**单视频**链接不受影响（规范化规则已覆盖，剥掉 list 参数即可）。
+
+**runlog**：系列模式每讲各记一行，另加一行 `series` 类型记录整体。

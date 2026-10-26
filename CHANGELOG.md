@@ -2,6 +2,17 @@
 
 All notable changes to this skill will be documented in this file.
 
+## [1.3.0] - 2026
+
+### Added
+- **系列视频模式**：B 站多 P 合集——view API 的 `pages` 数组即全量目录（P号/标题/cid/时长），逐讲总结 + 汇总「学习路径总表」（P号｜标题｜时长｜核心主题｜依赖前置｜一句话收获）；分 P >10 时先出总表并与用户对齐范围，勿擅自全量跑
+- **YouTube 播放列表处理策略（写死）**：实证 noembed 对 `playlist?list=` 返回 `no matching providers` → 改走 WebSearch 找第三方整理的列表；单视频带 `&list=` 参数不受影响（规范化规则已覆盖）
+- **输出格式可配置**：默认 Markdown 笔记；可选「小红书图文版」（钩子 + 知识点卡片 + 话题标签）与「公众号文章版」（导语 + 分节 + 参考阅读）
+- **B 站字幕级探测（best-effort）**：`api.bilibili.com/x/player/wbi/v2?bvid=&cid=` 尝试拿 `data.subtitle.subtitles`，有则取 `subtitle_url` 下载 JSON 字幕升级为最高保真路径，空/报错立即跳过
+
+### Evidence
+- 基于 2026-10-26 v1.3.0 喂养轮实测：B 站分支首跑通过（狂神说 Java BV12J41137hu，80 分 P 目录完整返回）；YouTube 播放列表 noembed 不支持已实证；自动字幕站直连边界确认（rosetta 403 / glasp SSL 拦截 / recapio 200 → 佐证靠 WebSearch 索引命中的设计）
+
 ## [1.2.0] - 2026
 
 ### Added

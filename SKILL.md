@@ -1,11 +1,11 @@
 ---
 name: youtube-teaching-summary
-version: 1.1.0
+version: 1.2.0
 display_name: YouTube 教学视频总结助手
 display_name_en: YouTube Tutorial Summary Assistant
-description: 输入一个 YouTube 知识/教学/课程类视频链接，自动生成结构化的「学习视频教学内容总结」（分章节讲解 + 核心指令/概念速查表）。当直连 YouTube 或字幕代理受限时，自动改用「网页搜索 + 多源交叉核对」的方式可靠产出。触发词：youtube 总结、视频教学内容总结、教学视频笔记、根据视频生成总结、复制一个 youtube 链接生成总结。
-description_zh: 粘贴 YouTube 教学/知识类视频链接，自动生成结构化学习笔记：分章节讲解、要点表格、核心指令/概念速查表；网络受限时自动降级为网页搜索多源交叉核对。
-description_en: Paste a YouTube tutorial/educational video link and auto-generate a structured study note with chapter breakdowns, key-point tables, and a command/concept cheat sheet; falls back to web search with multi-source cross-checking when direct access is restricted.
+description: 输入一个 YouTube 或 B 站知识/教学/课程类视频链接，自动生成结构化的「学习视频教学内容总结」（分章节讲解 + 核心指令/概念速查表）。当直连视频平台或字幕代理受限时，自动改用「网页搜索 + 自动字幕站 + 多源交叉核对」的方式可靠产出。触发词：youtube 总结、b站总结、视频教学内容总结、教学视频笔记、根据视频生成总结、复制一个视频链接生成总结。
+description_zh: 粘贴 YouTube 或 B 站教学/知识类视频链接，自动生成结构化学习笔记：分章节讲解、要点表格、核心指令/概念速查表；网络受限时自动降级为「网页搜索 + 自动字幕站 + 多源交叉核对」。
+description_en: Paste a YouTube or Bilibili tutorial/educational video link and auto-generate a structured study note with chapter breakdowns, key-point tables, and a command/concept cheat sheet; falls back to web search, auto-caption sites, and multi-source cross-checking when direct access is restricted.
 ---
 
 # YouTube 教学视频内容总结
@@ -13,7 +13,7 @@ description_en: Paste a YouTube tutorial/educational video link and auto-generat
 把一个 YouTube 知识讲解视频，变成一份带章节、带要点、带速查表的结构化学习笔记。
 
 ## 何时使用
-- 用户给了一个 YouTube 视频链接，要求「总结 / 整理教学内容 / 做笔记 / 提取知识点」。
+- 用户给了一个 YouTube 或 B 站视频链接，要求「总结 / 整理教学内容 / 做笔记 / 提取知识点」。
 - 视频类型是：教程、技术讲解、公开课、软件教学、概念科普等「以传授知识为主」的内容。
 - 用户想把看过的教学视频沉淀成可复习、可复用的文档。
 
@@ -22,26 +22,46 @@ description_en: Paste a YouTube tutorial/educational video link and auto-generat
 ### 0. 读运行日志（每次必做）
 打开 `references/runlog.md` 通读「已知经验」与最近几条日志，规避已踩过的坑（如 Shorts 链接需先规范化）。**运行结束后回到第 7 步追加一条日志。**
 
-### 1. 取元数据（几乎必定成功）
-**先规范化 URL**：Shorts 链接（`youtube.com/shorts/<ID>`）必须转成 `youtube.com/watch?v=<ID>` 再喂给下面两个端点——noembed 不识别 shorts 形式。
-```bash
-curl -sS -m 20 "https://noembed.com/embed?url=<规范化后的视频URL>"        # 返回 title / author_name / provider
-curl -sS -m 20 "https://www.youtube.com/oembed?url=<规范化后的视频URL>&format=json"  # 备选，可能 401
-```
-拿到标题（title）、频道（author_name）。**标题是后面搜索的关键词**，必须先拿到。
+### 1. 取元数据（按平台分支，几乎必定成功）
+**先规范化 URL（写死，不许跳过）**：
+- YouTube Shorts：`youtube.com/shorts/<ID>` → `youtube.com/watch?v=<ID>`（noembed 不识别 shorts 形式）
+- YouTube 带参链接：剥掉 `&list=`、`&t=` 等多余参数，只留 `watch?v=<ID>`
+- B 站：从 `bilibili.com/video/<BV号>` 提取 BV 号；`b23.tv` 短链先跟随跳转拿到 BV 号
 
-**兜底（noembed 与 oembed 都失败时）**：直接用 WebSearch 搜视频 URL 或视频 ID（如 `"3VD0-qerrOI"` 或完整链接），从搜索结果的标题/摘要里拿视频标题与频道名——实测有效，不要在此卡死。
+**元数据获取（按平台）**：
+- **YouTube**：
+  ```bash
+  curl -sS -m 20 "https://noembed.com/embed?url=<规范化后的URL>"      # 返回 title / author_name
+  curl -sS -m 20 "https://www.youtube.com/oembed?url=<规范化后的URL>&format=json"  # 备选
+  ```
+  **限流防御（写死）**：批量调用时每请求间隔 3–5 秒；请求失败先 sleep 5s 重试**一次**，仍失败再走兜底——noembed 连发会被限流，重试即恢复（实测）。
+  **兜底**：WebSearch 直接搜视频 ID/URL，从结果拿标题与频道（实测有效，如 noembed 403 的视频）。
+- **B 站**（noembed 不支持，用官方 API，免鉴权）：
+  ```bash
+  curl -sS -m 20 "https://api.bilibili.com/x/web-interface/view?bvid=<BV号>" -H "User-Agent: Mozilla/5.0"
+  ```
+  返回 `data.title` / `data.owner.name` / `data.duration` 等（实测可达）。
+
+拿到标题（title）、频道（author）。**标题是后面搜索的唯一关键词——严禁凭频道名推断视频主题**（实测教训：Mosh 的 React 教程被误当 Python 搜，结果全是频道其他视频）。
 
 ### 2. 抓内容（主路径 = 网页搜索，不要死磕直连字幕）
-在受限网络里，直连 YouTube 与多数字幕代理经常失败。最稳的是**用标题去搜现成的章节表与学习笔记**：
+在受限网络里，直连 YouTube 与多数字幕代理经常失败。最稳的是**用精确标题去搜现成的章节表与学习笔记**。
 
-用 WebSearch，按下面几类查询（中英文都试，语言跟随视频）：
+**首选：自动字幕站（准字幕级来源，实测命中率极高）**——这类站自动从 captions 生成「章节+时间戳+摘要」，等于绕过字幕直连被墙的问题：
+- `"<视频标题>" site:rosetta.to`（章节时间戳+金句）
+- `glasp.co/youtube/<视频ID>`（**按 ID 建页**，直接拼 URL 试一次）
+- `"<视频标题>" site:recapio.com`（带时间戳分段摘要）
+- `"<视频标题>" site:sozai.app`（全文 transcript+章节）
+
+**次选：人写笔记与官方资料**：
 - `"<视频标题>" 章节` / `"<视频标题>" 教學 筆記` / `"<视频标题>" 完整筆記`
 - `"<视频标题>" summary` / `"<视频标题>" notes` / `"<视频标题>" chapters`
-- `"<视频标题>" site:ithelp.ithome.com.tw` / `site:technice.com.tw`（中文技术笔记常见站）
+- `"<视频标题>" site:ithelp.ithome.com.tw` / `site:technice.com.tw`（中文技术笔记站）
 - 加上视频 ID 或频道名一起搜，提高命中
 
-用 WebFetch 抓 2–3 篇**明确引用了该视频（含视频链接/ID）**的来源，优先：官方视频简介里的章节表、同一作者的配套文章、或第三方学习笔记（如 iT 邦幫忙系列文、technice）。
+用 WebFetch 抓 2–3 篇来源，优先级：**官方视频简介章节表 > 自动字幕站 > 同一作者配套文章 > 第三方学习笔记**。
+
+**同名甄别（写死）**：同一频道常有同名/近似名的多版本视频（如 Traversy《React JS Crash Course》有 2021/2024 两版，章节完全不同）。核对每个章节表来源的**视频 ID、时长、发布年份**，对不上就丢弃，宁缺毋滥。
 
 ### 3. 可选：尝试直连字幕（best-effort，失败就跳过，别卡住）
 以下服务**在本环境大多被墙或已关停**，每个只给 ~20 秒，失败立即走第 2 步：

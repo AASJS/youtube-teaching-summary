@@ -1,6 +1,6 @@
 # YouTube 教学视频总结助手（youtube-teaching-summary）
 
-> v1.0.1 ｜ 一个 WorkBuddy / Claude Code 等 Agent 通用的 Skill：**粘贴一个 YouTube 教学/知识类视频链接，自动产出结构化学习笔记**（分章节讲解 + 要点表格 + 核心指令/概念速查表）。
+> v1.1.0 ｜ 一个 WorkBuddy / Claude Code 等 Agent 通用的 Skill：**粘贴一个 YouTube 教学/知识类视频链接，自动产出结构化学习笔记**（分章节讲解 + 要点表格 + 核心指令/概念速查表）。
 
 ## 它解决什么问题
 
@@ -57,7 +57,8 @@ npx skills add AASJS/youtube-teaching-summary -g
 ├── SKILL.md                      # 触发条件 + 核心工作流 + 可靠性原则
 └── references/
     ├── workflow.md               # 实测可达/不可达端点清单 + 降级决策树
-    └── summary_template.md       # 输出 Markdown 模板
+    ├── summary_template.md       # 输出 Markdown 模板
+    └── runlog.md                 # 运行日志：运行前读（规避坑）、运行后写（迭代原料）
 ```
 
 ## 实测验证过的视频
